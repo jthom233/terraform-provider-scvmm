@@ -1,8 +1,8 @@
 package main
 
 import (
-	"github.com/hashicorp/terraform-plugin-sdk/helper/schema"
-	"github.com/hashicorp/terraform-plugin-sdk/plugin"
+	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
+	"github.com/hashicorp/terraform-plugin-sdk/v2/plugin"
 )
 
 func main() {
@@ -50,4 +50,10 @@ func providerConfigure(d *schema.ResourceData) (interface{}, error) {
 		Username:  username,
 		Password:  password,
 	}, nil
+}
+
+type SCVMMClient struct {
+	VMMServer string
+	Username  string
+	Password  string
 }

@@ -2,9 +2,10 @@ package main
 
 import (
 	"fmt"
+	"os/exec"
+	"strings"
 
-	"github.com/Cloudbase/go-powershell"
-	"github.com/hashicorp/terraform-plugin-sdk/helper/schema"
+	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
 )
 
 func resourceVM() *schema.Resource {
@@ -39,6 +40,14 @@ func resourceVM() *schema.Resource {
 	}
 }
 
+func runPowerShell(script string) (string, error) {
+	cmd := exec.Command("powershell", "-Command", script)
+	var out strings.Builder
+	cmd.Stdout = &out
+	err := cmd.Run()
+	return out.String(), err
+}
+
 func resourceVMCreate(d *schema.ResourceData, m interface{}) error {
 	client := m.(*SCVMMClient)
 
@@ -48,14 +57,7 @@ func resourceVMCreate(d *schema.ResourceData, m interface{}) error {
 	description := d.Get("description").(string)
 	cloudName := d.Get("cloud_name").(string)
 
-	// Use go-powershell to execute the PowerShell script
-	ps, err := powershell.New(&powershell.DefaultBackend{})
-	if err != nil {
-		return err
-	}
-	defer ps.Exit()
-
-	script := `
+	script := fmt.Sprintf(`
         param (
             [string]$Template,
             [string]$ComputerName,
@@ -76,20 +78,9 @@ func resourceVMCreate(d *schema.ResourceData, m interface{}) error {
         Update-SCVMConfiguration $vmConfig
         New-SCVirtualMachine -Name $VMName -VMConfiguration $vmConfig -Cloud $Cloud -Description $Description -RunAsynchronously
         Start-Sleep -Seconds 60
-    `
+    `, template, computerName, name, description, cloudName, client.VMMServer, fmt.Sprintf("%s:%s", client.Username, client.Password))
 
-	// Set parameters for the script
-	params := map[string]interface{}{
-		"Template":     template,
-		"ComputerName": computerName,
-		"VMName":       name,
-		"Description":  description,
-		"CloudName":    cloudName,
-		"VMMServer":    client.VMMServer,
-		"Credential":   fmt.Sprintf("%s:%s", client.Username, client.Password),
-	}
-
-	_, err = ps.Execute(script, params)
+	_, err := runPowerShell(script)
 	if err != nil {
 		return err
 	}
@@ -106,6 +97,7 @@ func resourceVMRead(d *schema.ResourceData, m interface{}) error {
 func resourceVMUpdate(d *schema.ResourceData, m interface{}) error {
 	// Implement the update logic
 	return nil
+
 }
 
 func resourceVMDelete(d *schema.ResourceData, m interface{}) error {
